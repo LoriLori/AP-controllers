@@ -6,10 +6,9 @@
 //  Center for Diabetes Technology
 //  University of Virginia
 //*********************************************************************************************************************
-package edu.virginia.dtc.BRMservice;
+package edu.virginia.dtc.APCservice;
 
 import Jama.*;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Iterator;
@@ -19,14 +18,11 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
 
 import java.lang.reflect.Array;
 
-import edu.virginia.dtc.SysMan.Debug;
-import edu.virginia.dtc.SysMan.Event;
 import edu.virginia.dtc.Tvector.Tvector;
 
 
@@ -39,7 +35,7 @@ public class InsulinTherapy {
 	private Subject subject;
 	private Bolus bolus_current;
 	private Meal meal_current;
-	public final String TAG = "BRMservice";
+	public final String TAG = "HMSservice";
 	// Identify owner of record in User Table 1
 	public static final int MEAL_IOB_CONTROL = 10;
 	// Interface definitions for the biometricsContentProvider
@@ -62,7 +58,6 @@ public class InsulinTherapy {
 	double[][] MatCGM_slope2_init = {{0.0}, {0.0}, {0.0}, {0.0}, {0.0}, {0.0}, {0.0}, {0.0}, {0.0}, {0.0}, {0.0}, {0.0}, {0.0}};
 	Matrix MatCGM_slope2 = new Matrix(MatCGM_slope2_init);
 	public static final int INS_targetslope_window_size_seconds = 27*60;		// Accommodate 5 data points: 25 minute window with 2 minutes of margin
-	public static final int CGM_window_size_seconds = 62*60;		// Accommodate 8 data points: 60 minute window with 2 minutes of margin
 	public static final int CGM_slope1_window_size_seconds = 27*60;				// Accommodate 5 data points: 25 minute window with 2 minutes of margin
 	public static final int CGM_slope2_window_size_seconds = 67*60;				// Accommodate 13 data points: 65 minute window with 2 minutes of margin
 	public final static double T2tgt = 30.0;
@@ -90,14 +85,6 @@ public class InsulinTherapy {
 	private static final int LOG_ACTION_WARNING = 4;
 	private static final int LOG_ACTION_SERIOUS = 5;
 	
-	//Variables created for glucose target calculation (glucose target can be tuned by changing these parameters)
-	public static final int N_end=7;
-	public static final int N_start=23;
-	public static final int N_length=8;
-	public final static int N_glucoseTarget=7;
-	public static final double Taux=0.2;
-	public static final double Gmax=160;
-	public static final double Gspred=40;
 	
 	public boolean valid = false;
 
@@ -123,7 +110,7 @@ public class InsulinTherapy {
 		// Initialize the class that holds our state data
 		therapy_data = new TherapyData(time);
 		// Generate the first state estimate
-		if (insulin_therapy(Tvec_cgm1, Tvec_spent, Tvec_IOB, Tvec_Gest,Tvec_Gbrakes, control_param, time, cycle_duration_mins, brakes_coeff, calFlagTime))
+		if (insulin_therapy(Tvec_cgm1, Tvec_spent, Tvec_IOB, Tvec_Gest, Tvec_Gbrakes,control_param, time, cycle_duration_mins, brakes_coeff, calFlagTime))
 			valid = true;
 		else
 			valid = false;
@@ -191,7 +178,7 @@ public class InsulinTherapy {
 		}
 */		
 		// 4. Compute the differential_basal_rate
-		therapy_data.differential_basal_rate = differentialBasalRate(time, subject.basal, saturate_CF(subject.CF),Tvec_cgm1 ,Tvec_Gest, Tvec_Gbrakes ,Tvec_IOB, calFlagTime);
+		therapy_data.differential_basal_rate = differentialBasalRate(time, subject.basal, subject.CF, Tvec_cgm1, Tvec_Gest,Tvec_Gbrakes, Tvec_IOB, calFlagTime);
 		// 5. Save internal data into user table 1
 		storeUserTable1Data( time,
 				 INS_target_sat_user1,
@@ -406,132 +393,94 @@ public class InsulinTherapy {
 		int timeNowMins = (int)((time+UTC_offset_secs)/60)%1440;
 		double ToD_hours = (double)timeNowMins/60.0;
 		double x;
-		if (ToD_hours<N_end) {
-			x = (ToD_hours+24-N_start)/N_length;
+		if (ToD_hours<6.0) {
+			x = (1.0+ToD_hours)/7.0;
 		}
-		else if (ToD_hours>N_start)
-		{
-			x = (ToD_hours-N_start)/N_length;
+		else if (ToD_hours>=6.0 && ToD_hours<7.0) {
+			x = 7.0-ToD_hours;
 		}
-		else if ((ToD_hours>=N_end)&&(ToD_hours<=N_end+1))
-		{
-			x = 1-ToD_hours+N_end;
+		else if (ToD_hours>=7.0 && ToD_hours<23.0) {
+			x = 0.0;
 		}
-		else 
-		{
-			x = 0;
+		else {
+			x = (ToD_hours-23.0)/7.0;
 		}
-		double x1 = Math.pow((x/Taux),N_glucoseTarget)/(1.0+Math.pow((x/Taux),N_glucoseTarget));
-		double glucose_target = Gmax-Gspred*x1;
-		log_action(TAG, "ToD_hours="+String.format("%.2f", ToD_hours)+", glucose_target="+String.format("%.2f", glucose_target), LOG_ACTION_DEBUG);
+		double x1 = Math.pow((x/0.5),3.0)/(1.0+Math.pow((x/0.5),3.0));
+		double glucose_target = 160.0-45.0*x1;
+		log_action(TAG, "glucoseTarget > ToD_hours="+ToD_hours+", glucose_target="+glucose_target, LOG_ACTION_DEBUG);
 		debug_message(TAG, "glucoseTarget > ToD_hours="+ToD_hours+", x="+x+", x1="+x1);
 		debug_message(TAG, "glucoseTarget > time="+time+", ToD_hours="+ToD_hours+", glucose_target="+glucose_target);
 		return glucose_target;
 	}
 	
 	// Return differential basal rate in U/hour
-	public double differentialBasalRate(long time, double basal, double CF,Tvector Tvec_cgm, Tvector Tvec_Gest,Tvector Tvec_Gbrakes,Tvector Tvec_IOB, long calFlagTime) {
-    	final String FUNC_TAG = "differentialBasalRate";
+	public double differentialBasalRate(long time, double basal, double CF, Tvector Tvec_cgm, Tvector Tvec_Gest,Tvector Tvec_Gbrakes, Tvector Tvec_IOB, long calFlagTime) {
 		double return_value = 0.0;
 	   	List<Integer> indices;
 	   	long t;
 	   	double v;
 	   	int ii;
-	   	//Tvector Tvec_insulin_target = new Tvector(5);
+	   	Tvector Tvec_glucose_target = new Tvector(5);
+	   	Tvector Tvec_insulin_target = new Tvector(5);
 	   	double INS_target, INS_target_sat, INS_target_predicted;
 	   	double INS_target_slope, INS_target_slope_sat;
-	   	debug_message("VCU_test", "min 1800/TDI,CF == "+Double.toString(CF));
-		if ((indices = Tvec_cgm.find(">", time-CGM_window_size_seconds, "<=", time)) != null) {
-			debug_message("VCU_test", "cgm ind size "+indices.size());
-			if (indices.size() != 0) {
-				//No slope calculation!
-				//Insulin Target is calculated based on the test : if we have 8 values or more in the last value (use G=Gbrakes (predicted glucose over 30 min)) 
-				//If there is less than 8 values in the last hour, use the value: G=Gpred (in this case Gest)
-				//Insulin target= (G-G_target)/min(1800/TDI,CF)
+		if ((indices = Tvec_Gest.find(">", time-INS_targetslope_window_size_seconds, "<=", time)) != null) {
+			if (indices.size() == 5) {
+				// Initialize Tvec_insulin_target
+				// - We have the 5 most recent Gest values, calculate corresponding INS_target values
 				try {
-					if (indices.size() >= 8) {
-						
-						INS_target=(Tvec_Gbrakes.get_last_value()-glucoseTarget(Tvec_Gbrakes.get_last_time()))/CF;
+					Iterator<Integer> iterator = indices.iterator();
+					int jj=0;
+					while (iterator.hasNext()) {
+						ii = iterator.next();
+						t = Tvec_Gest.get_time(ii);
+						v = (Tvec_Gest.get_value(ii) - glucoseTarget(t))/CF;
+						Tvec_insulin_target.put(t, v);
+						MatINS_target.set(jj++, 0, v);
 					}
-					else {
-		        		
-						INS_target=(Tvec_Gest.get_last_value()-glucoseTarget(Tvec_Gest.get_last_time()))/CF;
-						
-					}
-					debug_message(TAG, "INS_target="+INS_target);
+					Tvec_Gest.dump(TAG, "Target > Tvec_Gest");
+					Tvec_insulin_target.dump(TAG, "Target > Tvec_insulin_target");
+					// Calculate INS_target_slope
+					INS_target_slope = -MatDER.transpose().times(MatINS_target).trace();
+					debug_message(TAG, "INS_target_slope="+INS_target_slope);
 					// Calculate the predicted value of INS_target
-					INS_target_sat = INS_target_saturate(INS_target, CF);
-					//INS_target_slope_sat = INS_target_slope_saturate(INS_target_slope, time, calFlagTime);
-					INS_target_predicted = INS_target_sat;
+					INS_target_sat = INS_target_saturate(Tvec_insulin_target.get_last_value(), CF);
+					INS_target_slope_sat = INS_target_slope_saturate(INS_target_slope, time, calFlagTime);
+					INS_target_predicted = INS_target_sat + PredH*INS_target_slope_sat;
 					INS_target_sat_user1 = INS_target_sat;
-					//INS_target_slope_sat_user1 = INS_target_slope_sat;
+					INS_target_slope_sat_user1 = INS_target_slope_sat;
 					// Calculate a Rate
 					double Rate = (INS_target_predicted - Math.max(Tvec_IOB.get_last_value(), 0.0))/T2tgt;
-//					log_action(TAG, "differentialBasalRate > INS_tgt_pred="+INS_target_predicted+", IOB_sat="+Math.max(Tvec_IOB.get_last_value(), 0.0)+", INS_target="+INS_target, LOG_ACTION_DEBUG);
-					debug_message("VCU_test", "Rate > "+Double.toString(Rate)+ "differentialBasalRate > INS_tgt_pred="+INS_target_predicted+", IOB_sat="+Math.max(Tvec_IOB.get_last_value(), 0.0)+", INS_target="+INS_target);
-					
+					log_action(TAG, "differentialBasalRate > INS_tgt_pred="+INS_target_predicted+", IOB_sat="+Math.max(Tvec_IOB.get_last_value(), 0.0), LOG_ACTION_DEBUG);
 					// Calculate the differential basal rate
-					double basal_ceiling=basal_saturate(Tvec_Gest.get_last_value(), basal);
-					debug_message("VCU_test", "basal= "+Double.toString(basal)+" > basal ceiling = "+Double.toString(basal_ceiling));
-					if (Rate > basal_ceiling/60.0) {
-						return_value = basal_ceiling/60.0;
+					if (Rate > 2.0*basal/60.0) {
+						return_value = 2.0*basal/60.0;
 					}
-					else if (Rate > 0.0 && Rate <= basal_ceiling/60.0) {
+					else if (Rate > 0.0 && Rate <= 2.0*basal/60.0) {
 						return_value = Rate;
 					}
 					else {
 						return_value = 0.0;
 					}
 					debug_message(TAG, "differentialBasalRate="+return_value);
-					// Log glucose and insulin targets
-					log_action(TAG, "INS_target="+String.format("%.2f", INS_target)+", INS_target_sat="+String.format("%.2f", INS_target_sat)+
-							", IOB_sat="+String.format("%.2f", Math.max(Tvec_IOB.get_last_value(), 0.0))+
-							", basal_ceiling="+String.format("%.2f", basal_ceiling)+", diff_rate="+String.format("%.2f", 60.0*return_value), Debug.LOG_ACTION_INFORMATION);
 				}
 				catch (IllegalArgumentException ex) {
-            		Bundle b = new Bundle();
-            		b.putString(	"description", "differentialBasalRate > Matrix inner dimensions must agree."+", "+FUNC_TAG
-            					);
-            		Event.addEvent(context, Event.EVENT_SYSTEM_ERROR, Event.makeJsonString(b), Event.SET_LOG);
-					debug_message(TAG, "differentialBasalRate > Matrix inner dimensions must agree,"+", "+FUNC_TAG);
+					debug_message(TAG, "differentialBasalRate > Matrix inner dimensions must agree.");
 					return 0.0;
 				}
 				catch (ArrayIndexOutOfBoundsException ex) {
-            		Bundle b = new Bundle();
-            		b.putString(	"description", "differentialBasalRate > Array index out of bounds."+", "+FUNC_TAG
-            					);
-            		Event.addEvent(context, Event.EVENT_SYSTEM_ERROR, Event.makeJsonString(b), Event.SET_LOG);
-					debug_message(TAG, "differentialBasalRate > Array index out of bounds,"+", "+FUNC_TAG);
+					debug_message(TAG, "differentialBasalRate > Array index out of bounds.");
 					return 0.0;
 				}
-				catch (RuntimeException ex) {
-            		Bundle b = new Bundle();
-            		b.putString(	"description", "RuntimeException: "+ex.getMessage()+", "+FUNC_TAG
-            					);
-            		Event.addEvent(context, Event.EVENT_SYSTEM_ERROR, Event.makeJsonString(b), Event.SET_LOG);
-					debug_message(TAG, "RuntimeException: "+ex.getMessage()+", "+FUNC_TAG);
-				}
 			} else {
-        		Bundle b = new Bundle();
-        		b.putString(	"description", "No Gest values in the last 27 minutes, differential_basal_rate=0"+", "+FUNC_TAG);
-        		Event.addEvent(context, Event.EVENT_SYSTEM_ERROR, Event.makeJsonString(b), Event.SET_LOG);
+				debug_message(TAG, "differentialBasalRate > Only "+indices.size()+" Gest values in the last 27 minutes.");
 				return 0.0;
 			}
 		} else {
-    		Bundle b = new Bundle();
-    		b.putString(	"description", "No Gest values in the last 27 minutes, differential_basal_rate=0"+", "+FUNC_TAG);
-    		Event.addEvent(context, Event.EVENT_SYSTEM_ERROR, Event.makeJsonString(b), Event.SET_LOG);
+			debug_message(TAG, "differentialBasalRate > No Gest values in the last 27 minutes.");
 			return 0.0;
 		}
 		return 60.0*return_value;
-	}
-	
-	public double saturate_CF(double CF){
-		if (CF>(1800/subject.TDI))
-			return 1800/subject.TDI;
-		else if (CF<(1500/subject.TDI))
-			return 1500/subject.TDI;
-		else return CF;	
 	}
 	
 	public double INS_target_saturate(double INS_target, double CF) {
@@ -540,79 +489,6 @@ public class InsulinTherapy {
 		else
 			return (90.0/CF);
 	}
-	public double basal_saturate (double last_Gpred, double basal){
-		
-		final String FUNC_TAG = "basal_saturate";
-		
-		Settings st = IOMain.db.getLastBrmDB();
-	
-
-		Debug.i(TAG, FUNC_TAG, "time= "+getCurrentTimeSeconds());
-		Debug.i(TAG, FUNC_TAG, "BrmDB:time= "+st.time);
-		Debug.i(TAG, FUNC_TAG, "BrmDB:starttime= "+st.starttime);
-		Debug.i(TAG, FUNC_TAG, "BrmDB:duration= "+st.duration);
-		Debug.i(TAG, FUNC_TAG, "BrmDB:BGhigh= "+st.d1);
-		Debug.i(TAG, FUNC_TAG, "BrmDB:BGlow= "+st.d2);
-		Debug.i(TAG, FUNC_TAG, "BrmDB:d3= "+st.d3);
-		
-		double BGhigh = 0;
-		double BGlow = 0;
-		int mode = 1;   // set mode: 0 default(fixed); 1 changeable
-		switch (mode) {
-			case 0:
-				BGhigh = 3;
-				BGlow = 2;
-				break;
-			case 1:
-				BGhigh = st.d1;
-				BGlow = st.d2;
-				break;
-		}
-		Debug.i(TAG, FUNC_TAG, "BGhigh= "+BGhigh+"   BGlow= "+BGlow);
-		
-		double saturated_basal=BGlow*basal;
-		if (last_Gpred<180)
-		{
-			 saturated_basal =  BGlow*basal;
-		}
-		else if (last_Gpred>=180)
-		{
-			saturated_basal = BGhigh*basal;
-		}
-		return saturated_basal;
-	}
-	
-//	public double basal_saturate (double last_Gpred, double basal){
-//		int setting = IOMain.db.getLastBrmDB().setting;
-//		int paramA, paramB;
-//		
-//		switch (setting) {
-//		case 0:
-//			paramA =2;
-//			paramB =3;
-//			break;
-//		case 1:
-//			paramA =1;
-//			paramB =2;
-//			break;
-//		case 2:
-//			paramA =1;
-//			paramB =3;
-//			break;
-//		}
-//		double saturated_basal=paramA*basal;
-//		if (last_Gpred<180)
-//		{
-//			 saturated_basal =  paramA*basal;
-//		}
-//		else if (last_Gpred>=180)
-//		{
-//			saturated_basal = paramB*basal;
-//		}
-//		return saturated_basal;
-//	}
-	
-	
 	
 	public double INS_target_slope_saturate(double INS_target_slope, long time, long calFlagTime) {
 		if (time-calFlagTime > 30*60) {
@@ -635,11 +511,6 @@ public class InsulinTherapy {
 		}
 	}	
 		
-	public long getCurrentTimeSeconds() {
-		long currentTimeSeconds = (long)(System.currentTimeMillis()/1000);			// Seconds since 1/1/1970 in UTC
-		return currentTimeSeconds;
-	}
-	
  	public void log_action(String service, String action) {
 		Intent i = new Intent("edu.virginia.dtc.intent.action.LOG_ACTION");
         i.putExtra("Service", service);
