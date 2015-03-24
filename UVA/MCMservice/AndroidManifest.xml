@@ -34,7 +34,7 @@
                   android:windowSoftInputMode="adjustPan" >
         </activity>
         
-        <meta-data android:name="Version" android:value="$Rev: 241a $*"/>
+        <meta-data android:name="Version" android:value="$Rev: 2411 $*"/>
     </application>
 
 </manifest>
