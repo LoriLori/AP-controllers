@@ -14,18 +14,11 @@ import android.database.CursorIndexOutOfBoundsException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import edu.virginia.dtc.SysMan.Debug;
+import edu.virginia.dtc.Tvector.Tvector;
 
 public class BrmDB extends SQLiteOpenHelper 
 {
 	private static final String TAG = "BRM_DB";
-	
-	public static final int UNKNOWN = -1;
-	public static final int PENDING = 0;
-	public static final int DELIVERING = 1;
-	public static final int DELIVERED = 2;
-	public static final int CANCELLED = 3;
-	public static final int INTERRUPTED = 4;
-	public static final int INVALID_REQ = 5;
 	
 	private static final int DATABASE_VERSION = 2;
 	private static final String DATABASE_NAME = "BRM";
@@ -35,6 +28,12 @@ public class BrmDB extends SQLiteOpenHelper
     		"CREATE TABLE " + HISTORY_TABLE + "(" +
     		"_id integer primary key autoincrement, " +
     		"time long, starttime long, duration long, d1 double, d2 double, d3 double);";
+    private static final String TDI_HISTORY_TABLE = "TDIhistory";
+    private static final String TDI_HISTORY_TABLE_CREATE =
+    		"CREATE TABLE " + TDI_HISTORY_TABLE + "(" +
+    		"_id integer primary key autoincrement, " +
+    		"time long, subjectID text, TDIc double, TDIest double);";
+    
     public Context context;
 
     BrmDB(Context context) {
@@ -49,46 +48,53 @@ public class BrmDB extends SQLiteOpenHelper
 		Debug.i(TAG, FUNC_TAG, "");
 		
 		db.execSQL(HISTORY_TABLE_CREATE);
+		db.execSQL(TDI_HISTORY_TABLE_CREATE);
 	}
 
 	@Override
 	public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("DROP TABLE IF EXISTS " + HISTORY_TABLE);
- 
+        db.execSQL("DROP TABLE IF EXISTS " + TDI_HISTORY_TABLE);
         onCreate(db);
 	}
 	
-
-
-
-//	public void modifyBrmDB(long time,
-//			int d0,
-//			double d1,
-//			double d2, 
-//			double d3) {
-//		final String FUNC_TAG = "modifyBrmDB";
-//		
-//		
-//		
-//		SQLiteDatabase db = this.getWritableDatabase();
-//	
-//		ContentValues values = new ContentValues();
-//		values.put("time", time);
-//		values.put("setting", d0);
-//		values.put("d1", d1);
-//		values.put("d2", d2);
-//		values.put("d3", d3);
-//		
-//		int rows = db.update(HISTORY_TABLE, values, "eventCounter = '"+e.eventCounter+"'", null);
-//		
-//		Debug.i(TAG, FUNC_TAG, "Rows modified: "+rows);
-//		
-//		db.close();
-//		
-//		saveDatabase();
-//    }	
-
+	public void UpdateTDIest(String subjectID, long time,double TDIest) {
+		final String FUNC_TAG = "modifyBrmDB";
 	
+		SQLiteDatabase db = this.getWritableDatabase();
+		
+		ContentValues values = new ContentValues();
+		values.put("time", time);
+		values.put("TDIest", TDIest);
+		values.put("subjectID", subjectID);
+		
+		int rows = db.update(TDI_HISTORY_TABLE, values, "time="+time, null);
+		
+		Debug.i(TAG, FUNC_TAG, "Rows modified: "+rows);
+		
+		db.close();
+		
+		saveDatabase();
+	}
+	
+	public void UpdateTDIc(String subjectID, long time,double TDIc) {
+		final String FUNC_TAG = "UpdateTDIc";
+		
+		SQLiteDatabase db = this.getWritableDatabase();
+		
+		ContentValues values = new ContentValues();
+		values.put("time", time);
+		values.put("TDIc", TDIc);
+		values.put("subjectID", subjectID);
+		
+		int rows = db.update(TDI_HISTORY_TABLE, values, "time="+time, null);
+		
+		Debug.i(TAG, FUNC_TAG, "Rows modified: "+rows);
+		
+		db.close();
+		
+		saveDatabase();
+	}
 	
     public void addtoBrmDB(long time,
     		            long starttime,
@@ -97,17 +103,7 @@ public class BrmDB extends SQLiteOpenHelper
 						double d2, 
 						double d3) 
 	{
-		final String FUNC_TAG = "addtoBrmDB";
-		
 		SQLiteDatabase db = this.getWritableDatabase();
-		
-//		if(lookupEventCounterInHistory(e.eventCounter))
-//		{
-//			Debug.i(TAG, FUNC_TAG, "Event already exists, cannot add again!");
-//			return;
-//		}
-//		else
-//			Debug.i(TAG, FUNC_TAG, "Adding event...Event Counter: "+e.eventCounter);
 		
 		ContentValues values = new ContentValues();
 		values.put("time", time);
@@ -124,10 +120,31 @@ public class BrmDB extends SQLiteOpenHelper
 		
 	}
 	
-	
-	
-	public Settings getBrmDB(int id)
+    public void addTDItoBrmDB(String subjectID, long time,double TDIc, double TDIest) 
 	{
+		final String FUNC_TAG = "TDItoBrmDB";
+		
+		SQLiteDatabase db = this.getWritableDatabase();
+		
+		Debug.i(TAG, FUNC_TAG, "Adding TDI to database");
+		
+		ContentValues values = new ContentValues();
+		values.put("time", time);
+		values.put("subjectID", subjectID);
+		
+		if (TDIc !=0){
+			values.put("TDIc", TDIc);
+		}
+		if (TDIest !=0){
+			values.put("TDIest", TDIest);
+		}
+		db.insert(TDI_HISTORY_TABLE, null, values);
+		db.close();
+		
+		saveDatabase();  // save to sd card
+	}
+	
+	public Settings getBrmDB(int id) {
 		SQLiteDatabase db = this.getReadableDatabase();
 		String query = "SELECT * FROM " + HISTORY_TABLE + " where _id='"+id+"'";
 
@@ -146,7 +163,28 @@ public class BrmDB extends SQLiteOpenHelper
         st.d1 = c.getDouble(c.getColumnIndex("d1"));
         st.d2 = c.getDouble(c.getColumnIndex("d2"));
         st.d3 = c.getDouble(c.getColumnIndex("d3"));
+        c.close();
         
+		return st;
+	}
+	
+	public Settings getTDI_DB(int id) {
+		SQLiteDatabase db = this.getReadableDatabase();
+		String query = "SELECT * FROM " + TDI_HISTORY_TABLE + " where _id='"+id+"'";
+
+		Settings st = new Settings();
+		
+		Cursor c = db.rawQuery(query, null);
+        
+		if (c != null) {
+			c.moveToFirst();
+		}
+		
+        //Fill in event data
+		st.subjectID = c.getString(c.getColumnIndex("subjectID"));
+        st.time = c.getLong(c.getColumnIndex("time"));
+        st.TDIc = c.getDouble(c.getColumnIndex("TDIc"));
+        st.TDIest = c.getDouble(c.getColumnIndex("TDIest"));
         c.close();
         
 		return st;
@@ -179,57 +217,61 @@ public class BrmDB extends SQLiteOpenHelper
 		return st;
 	}	
 
-	
-//	public List<Events> getManualInsulinHistory()
-//	{
-//		SQLiteDatabase db = this.getReadableDatabase();
-//		String query = "SELECT * FROM " + HISTORY_TABLE + " where bolusId='-1'";
-//		List<Events> events = new ArrayList<Events>();
-//		
-//		Cursor c = db.rawQuery(query, null);
-//		if(c != null)
-//		{
-//			if(c.moveToFirst())
-//			{
-//				do
-//				{
-//					//We should get each event if the ID exists
-//					events.add(getHistoryEvent(c.getInt(c.getColumnIndex("_id"))));
-//				} while (c.moveToNext());
-//			}
-//		}
-//		c.close();
-//		
-//		//Return the manual history
-//		return events;
-//	}
-//	
-//	public List<Events> getHistory()
-//	{
-//		SQLiteDatabase db = this.getReadableDatabase();
-//		String query = "SELECT * FROM " + HISTORY_TABLE;
-//		List<Events> events = new ArrayList<Events>();
-//		
-//		Cursor c = db.rawQuery(query, null);
-//		if(c != null)
-//		{
-//			if(c.moveToFirst())
-//			{
-//				do
-//				{
-//					//We should get each event if the ID exists
-//					events.add(getHistoryEvent(c.getInt(c.getColumnIndex("_id"))));
-//				} while (c.moveToNext());
-//			}
-//		}
-//		c.close();
-//		
-//		//Return the completed history
-//		return events;
-//	}
-	
-	public int getTotalEvents()
+	public Settings getLastTDIestBrmDB(String subjectID)
 	{
+		final String FUNC_TAG = "getLastTDIestBrmDB";
+		
+		SQLiteDatabase db = this.getReadableDatabase();
+		String query = "SELECT * FROM " + TDI_HISTORY_TABLE+ " where TDIest IS NOT NULL AND subjectID="+"'"+subjectID+"'";
+
+		Settings st = new Settings();
+		
+		Cursor c = db.rawQuery(query, null);
+		Debug.i(TAG,FUNC_TAG,"last tdi est query >>>>"+c.getCount());
+		if (c.getCount() != 0) {
+			
+			c.moveToLast();   //// need to verify
+			st.time = c.getLong(c.getColumnIndex("time"));
+	        st.TDIest = c.getDouble(c.getColumnIndex("TDIest"));
+	        
+		}
+		else {
+			st.time = getCurrentTimeSeconds();
+	        st.TDIest = 0;
+		}
+		c.close();
+        
+        return st;
+	}
+	
+	//getTDIcHistory == gets history of TDIc since time t
+	public Tvector getTDIcHistory(String subjectID, long time)
+	{
+		final String FUNC_TAG = "getTDIcHistory";
+		Tvector temp= new Tvector();
+		
+		SQLiteDatabase db = this.getReadableDatabase();
+		String query = "SELECT * FROM " + TDI_HISTORY_TABLE+ " where TDIc IS NOT NULL AND time > "+time+" AND subjectID="+"'"+subjectID+"'";
+
+		Cursor c = db.rawQuery(query, null);
+		Debug.i(TAG,FUNC_TAG,"TDIc History >>>>"+c.getCount()+" since >>>  "+time);	
+		if((c.moveToFirst())&&(c.getCount() != 0))
+		{
+			do {
+				temp.put(c.getLong(c.getColumnIndex("time")), c.getDouble(c.getColumnIndex("TDIc")));
+			} while (c.moveToNext());
+		}
+		
+		c.close();
+		
+        return temp;
+	}
+	
+	public long getCurrentTimeSeconds() {
+		return (long)(System.currentTimeMillis()/1000);			// Seconds since 1/1/1970		
+	}
+	
+	public int getTotalEvents() {
 		String countQuery = "SELECT  * FROM " + HISTORY_TABLE;
         SQLiteDatabase db = this.getReadableDatabase();
         int count = 0;
@@ -241,8 +283,7 @@ public class BrmDB extends SQLiteOpenHelper
         return count;
 	}
 	
-	public boolean lookupEventCounterInHistory(long eventCnt)
-	{
+	public boolean lookupEventCounterInHistory(long eventCnt) {
 		final String FUNC_TAG = "lookupEventCounterInHistory";
 		
 		String idQuery = "SELECT * FROM " + HISTORY_TABLE + " where eventCounter='"+eventCnt+"'";
@@ -262,68 +303,7 @@ public class BrmDB extends SQLiteOpenHelper
 		return false;
 	}
 	
-//	public Events lookupBolusInHistory(int id)
-//	{
-//		final String FUNC_TAG = "lookupBolusInHistory";
-//		
-//		Events e = Driver.getInstance().new Events();
-//		String idQuery = "SELECT * FROM " + HISTORY_TABLE + " where bolusId='"+id+"'";
-//		SQLiteDatabase db = this.getReadableDatabase();
-//		
-//		double req = 0, deliv = 0;
-//		
-//		Cursor c = db.rawQuery(idQuery, null);
-//		if(c != null)
-//		{
-//			Debug.i(TAG, FUNC_TAG, "Found "+c.getCount()+" rows with ID: "+id);
-//			
-//			if(c.moveToFirst())
-//			{
-//				do
-//				{
-//					e = getHistoryEvent(c.getInt(c.getColumnIndex("_id")));
-//					switch(e.eventID)
-//					{
-//						case 15:
-//							e.status = DELIVERED;
-//							e.description = "Delivered";
-//							deliv = e.bolus;
-//							break;
-//						case 14:
-//							e.status = DELIVERING;
-//							e.description = "Delivering";
-//							req = e.bolus;
-//							break;
-//						default:
-//							Debug.i(TAG, FUNC_TAG, "Unknown Event ID!");
-//							break;
-//					}
-//					
-//					Debug.i(TAG, FUNC_TAG, "Status "+ e.status + " found for ID: "+id);
-//				} while (c.moveToNext());
-//			}
-//		}
-//		
-//		if(e.status != DELIVERED)
-//		{
-//			Debug.i(TAG, FUNC_TAG, "Bolus not delivered, marking failure in return status!");
-//			e.description = "Invalid Request";
-//			e.status = INVALID_REQ;
-//			e.bolusId = id;
-//		}
-//		
-//		Debug.i(TAG, FUNC_TAG, "Returned bolus status: "+e.status);
-//		
-//		if(e.status == DELIVERED && (req!=deliv))
-//		{
-//			e.status = CANCELLED;
-//		}
-//		
-//		return e;
-//	}
-	
-	public int saveDatabase()
-	{
+	public int saveDatabase() {
 		final String FUNC_TAG = "saveDatabase";
 
 	 	SimpleDateFormat sdf = new SimpleDateFormat("yyyy_MM_dd");
