@@ -125,7 +125,7 @@ public class IOMain extends Service {
     			}
             }	
         };
-        registerReceiver(BRMparamReceiver, new IntentFilter("edu.virginia.dtc.DiAsUI.parametersAction"));
+        //registerReceiver(BRMparamReceiver, new IntentFilter("edu.virginia.dtc.DiAsUI.parametersAction"));
         
 		db = new BrmDB(this.getApplicationContext());
 
@@ -138,7 +138,7 @@ public class IOMain extends Service {
 
 	@Override
 	public void onDestroy() {
-		unregisterReceiver(BRMparamReceiver);
+		//unregisterReceiver(BRMparamReceiver);
 	}
 	
     class IncomingBRMHandler extends Handler {
