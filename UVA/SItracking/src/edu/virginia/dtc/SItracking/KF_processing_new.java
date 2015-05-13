@@ -11,6 +11,7 @@ public class KF_processing_new {
 	double[] Gest; // 8h
 	double[] SI_8h; // 2h warm up + SI_6h
   	double[] SI_6h; // 6h
+  	double SI;
   	boolean isValid = true;
   	
 
@@ -124,6 +125,7 @@ public class KF_processing_new {
 			SI_6h[i] = Math.exp(kf.KFout[2][i+N-72]+KSI)*SIb;
 		}
 	}
+	SI=getmean(SI_6h);
   }
   
   public double getmean(double[] input){

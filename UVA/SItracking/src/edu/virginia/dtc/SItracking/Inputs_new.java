@@ -341,80 +341,7 @@ public class Inputs_new {
 	  
 	  
 	  
-	  
-	  
-	//********************************construct hypo******************************//
-	  
-//	  List<Integer> indiceshypo1 = null;
-//
-//	  indiceshypo1 = Tvec_hypo.find(">", startTimesecs, "<", currentTimeseconds);
-//
-//	  if (indiceshypo1 == null) {
-//		  for(i=0;i<steps;i++){
-//			  hypo_array[i]=0;
-//		  }
-//	  }else{
-//		  
-//		  debug_message(TAG, "indiceshypo1.size():"+indiceshypo1.size());
-//
-//		  
-//		//find empty's before and after indiced hypo
-//		  int nhypo=indiceshypo1.size();
-//		  int nbegin=0,nend=0;   // duplicate variable?
-//		  i=0;	  
-//		  while (Tvec_hypo.get_time(indiceshypo1.get(0))>timestamp[i]) {
-//			  i = i+1;
-//			 };	 
-//		  nbegin=i-1;
-//		  i=steps-1;
-//		  while (Tvec_hypo.get_time(indiceshypo1.get(nhypo-1))<timestamp[i]) {
-//			  i = i-1;
-//		  }
-//		  nend=i+1;
-//		  
-//		  //fill hypo into stamps
-//		  //(a)
-//		  for(i=0;i<=nbegin;i++){
-//			  hypo_array[i]=0;
-//		  }
-//		  
-//		  //(b)		  
-//		  for(i=nbegin+1;i<=nend;i++){
-//			 List<Integer> indiceshypo2 = null;
-//			 indiceshypo2 = Tvec_hypo.find(">=", timestamp[i-1], "<", timestamp[i]); //>= need to fix
-//             
-//			 if (indiceshypo2 != null) {
-//				 double totalspaninterval=0;
-//				 for (j=0;j<indiceshypo2.size();j++){
-//					 totalspaninterval=totalspaninterval+Tvec_hypo.get_value(indiceshypo2.get(j));
-//	             }
-//				 hypo_array[i] = (double) totalspaninterval/5;
-//
-//			 } else {
-//				 hypo_array[i]=0;
-//			 }
-//		  } 
-//		  
-//		  //(c)	  
-//		  if (nend<steps-1){
-//			  
-//			  for(i=nend+1;i<steps;i++){
-//				  hypo_array[i]=0;
-//			  }
-//		  
-//		  }
-//		
-//		  
-//	  }
-//	  
-//	  
-//	  hypo = hypo_array;
-//	  
-//	  for(i=0;i<hypo.length;i++){debug_message(TAG, "hypo:"+hypo[i]+"\n");}
-	  
-	  
-	  
-
+	
 	  
 	  //***************************construct basal profile*****************************//
 	  TimeZone tz = TimeZone.getDefault();
@@ -428,7 +355,7 @@ public class Inputs_new {
 		  if ((p = Tvec_basal.getLastInRange(">", -1, "<=", tlocal)) == null) {
 		  		p = Tvec_basal.getLastInRange(">", -1, "<", -1);
 		  }	  
-		  basal_array[i]= p.value();//  
+		  basal_array[i]= p.value();//  mU/min
 	 	  
       }
 	  
@@ -473,7 +400,7 @@ public class Inputs_new {
 		  debug_message(TAG, "nbegin:"+nbegin+"nend:"+nend);
 
 		  
-		  //fill insulin into stamps
+		  //fill default insulin into stamps
 		  //(a)
 		  for(i=0;i<=nbegin;i++){
 			  insulin_array[i]=basal_array[i];
@@ -493,7 +420,7 @@ public class Inputs_new {
 					 totalspaninterval=totalspaninterval+Tvec_insulin.get_value(indicesinsulin2.get(j));
 			        // debug_message(TAG, "injected:"+Tvec_insulin.get_value(indicesinsulin2.get(j))+"\n");
 				 }			  
-				 insulin_array[i] = (double) totalspaninterval/5;
+				 insulin_array[i] = (double) totalspaninterval/5; //mU/min
 			 } else {
 				 insulin_array[i] = 0;
 			 }
@@ -699,7 +626,7 @@ public class Inputs_new {
 		  
   } // end of bumpless
   
- 
+
   
   public void fetchAllBiometricData() {
        
