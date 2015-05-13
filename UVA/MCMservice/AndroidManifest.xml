@@ -27,7 +27,7 @@
 		</service>
 		
         <activity android:label="Meal Screen"
-                  android:configChanges="orientation|keyboardHidden" 
+                  android:configChanges="orientation|keyboardHidden|screenSize" 
                   android:name="edu.virginia.dtc.MCMservice.MealActivity"
                   android:screenOrientation="sensorLandscape"
                   android:theme="@style/MealScreenTheme"
