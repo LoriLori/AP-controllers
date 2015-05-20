@@ -12,8 +12,9 @@ public class IOB_tracking {
 	public long history_length = 21600; //secs -> 6 hours
 	public long history_interval = 300;  //secs -> 5 minutes
 
-	public double IOBtotal=0; // Insulin on Board based on 4h action curves for all injected insulin
-	public double IOBbasal=0; // Insulin on Board based on 4h action curves for basal insulin
+	public double IOBtotal; // Insulin on Board based on 4h action curves for all injected insulin
+	public double IOBbasal; // Insulin on Board based on 4h action curves for basal insulin
+	public double IOBrel;// usual IOB
 	
 	public IOB_tracking(Context callingContext, long time, double BW) {
 	double Gb=110;	
@@ -21,7 +22,8 @@ public class IOB_tracking {
 		Inputs_new inputs = new Inputs_new(history_length,history_interval,Gb); //allocation
 	 	inputs.reconstruct(time,callingContext); //construct standard array of inputs
 		IOBbasal=calculate_IOB(inputs.basal_array,time,"BASAL",callingContext);
-		IOBtotal=IOBbasal+calculate_IOB(inputs.insulin_array,time,"REG",callingContext);
+		IOBrel=calculate_IOB(inputs.insulin_array,time,"REG",callingContext);
+		IOBtotal=IOBbasal+IOBrel;
 		
 	}
 	
