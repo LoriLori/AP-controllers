@@ -38,12 +38,17 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 
 public class MealActivity extends Activity{
 	
@@ -69,6 +74,22 @@ public class MealActivity extends Activity{
 	private EditText totalOutput;
 	private CheckBox iob;
 	private Button injectMeal;
+	
+	public static double normInsulin = 0.0;
+	public static double extInsulin = 0.0;
+	
+	private TextView normPercent;
+	private TextView extPercent;
+	private TextView normText;
+	private TextView extText;
+	
+	private SeekBar mealDivisionSeekbar;
+	private Spinner durationSpinner;
+	
+	private LinearLayout durationLayout;
+	
+	private boolean experimental=false;
+	private boolean isExtended;
 	
 	private ServiceConnection MCMservice;
     private final Messenger MCMmessenger = new Messenger(new IncomingMCMhandler());
@@ -200,75 +221,173 @@ public class MealActivity extends Activity{
 	/**
 	 * Update the user interface, buttons, and calculated values
 	 */
-    private void updateUi()
-    {
-    	final String FUNC_TAG = "updateUi";
-    	
+	private void updateUi() {
+		final String FUNC_TAG = "updateUi";
+
 		String invalid = "---";
-		
+
 		infoText.setText(info);
-		
-		if(injectEnabled) {
+
+		if (injectEnabled) {
 			injectMeal.setEnabled(true);
-		}
-		else {
+		} else {
 			injectMeal.setEnabled(false);
 		}
-		
-		if(iobChecked) {
-			if(iobInsulin > 0.0)
+
+		if (iobChecked) {
+			if (iobInsulin > 0.0) {
 				iobOutput.setText(String.format("%.2f", iobInsulin));
+ 			    if (experimental){
+ 			    	iobOutput.setText("Valid");
+ 			    	iobOutput.setTextColor(Color.GREEN); 
+			    }
+			}
 			else
 				iobOutput.setText(invalid);
-		}
-		else
-		{
+		} else {
 			iobOutput.setText(invalid);
 		}
-		
-		if(inProgress) {
-			((LinearLayout)MealActivity.this.findViewById(R.id.progressLayout)).setVisibility(View.VISIBLE);
-			((LinearLayout)MealActivity.this.findViewById(R.id.mealLayout)).setVisibility(View.GONE);
-    	}
-    	else {
-    		((LinearLayout)MealActivity.this.findViewById(R.id.progressLayout)).setVisibility(View.GONE);
-			((LinearLayout)MealActivity.this.findViewById(R.id.mealLayout)).setVisibility(View.VISIBLE);
-    	}
-		
-		if(carbsValid) {
-			carbsInput.setTextColor(Color.GRAY);
-			carbsOutput.setText(String.format("%.2f", carbsInsulin));
+
+		if (inProgress) {
+			((LinearLayout) MealActivity.this.findViewById(R.id.progressLayout))
+					.setVisibility(View.VISIBLE);
+			((LinearLayout) MealActivity.this.findViewById(R.id.mealLayout))
+					.setVisibility(View.GONE);
+		} else {
+			((LinearLayout) MealActivity.this.findViewById(R.id.progressLayout))
+					.setVisibility(View.GONE);
+			((LinearLayout) MealActivity.this.findViewById(R.id.mealLayout))
+					.setVisibility(View.VISIBLE);
 		}
-		else {
+
+		if (carbsValid) {
+			carbsInput.setTextColor(Color.GRAY);
+			if (experimental) {
+				carbsOutput.setText("Valid");
+				carbsOutput.setTextColor(Color.GREEN);
+			} else {
+				carbsOutput.setText(String.format("%.2f", carbsInsulin));
+			}
+			mealDivisionSeekbar.setEnabled(true);
+		} else {
 			carbsInput.setTextColor(Color.RED);
 			carbsOutput.setText(invalid);
+			mealDivisionSeekbar.setEnabled(false);
+			mealDivisionSeekbar.setProgress(100);
+			durationLayout.setVisibility(View.GONE);
+			extText.setText("Extended: 0U");
+			
 		}
-		
-		if(bgValid) {
+
+		if (bgValid) {
 			bgInput.setTextColor(Color.GRAY);
-			bgOutput.setText(String.format("%.2f", bgInsulin));
-		}
-		else {
+			if (experimental) {
+				bgOutput.setText("Valid");
+				bgOutput.setTextColor(Color.GREEN);
+			} else {
+				bgOutput.setText(String.format("%.2f", bgInsulin));
+			}
+		} else {
 			bgInput.setTextColor(Color.RED);
 			bgOutput.setText(invalid);
 		}
-		
-		if(corrValid) {
+
+		if (corrValid || experimental) {
 			corrInput.setTextColor(Color.GRAY);
-		}
-		else {
+		} else {
 			corrInput.setTextColor(Color.RED);
 		}
-		
-		if(totalValid) {
-			totalOutput.setText(String.format("%.2f", totalInsulin));
+
+		if (totalValid) {
+			if (experimental) {
+				totalOutput.setText("Valid");
+				totalOutput.setTextColor(Color.GREEN);
+				normText.setText("Now");
+			} else {
+				totalOutput.setText(String.format("%.2f", totalInsulin));
+				normText.setText("Now: " + String.format("%.2f", totalInsulin) + "U");
+			}
 			injectMeal.setEnabled(true);
-		}
-		else {
+		} else {
 			totalOutput.setText(invalid);
 			injectMeal.setEnabled(false);
+			if (experimental) {
+				normText.setText("Now: ---U");
+				extText.setText("Extended: 0U");
+			} else {
+				normText.setText("Now");
+				extText.setText("Extended");
+			}
 		}
-    }
+		
+		mealDivisionSeekbar.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
+
+			@Override
+			public void onStopTrackingTouch(SeekBar seekBar) {
+			}
+
+			@Override
+			public void onStartTrackingTouch(SeekBar seekBar) {
+			}
+
+			@Override
+			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+				normInsulin = Math.round(progress*totalInsulin)/100.00;
+				extInsulin= Math.round(100*(totalInsulin-normInsulin))/100.00;
+				
+				if (progress < 100) {
+					isExtended = true;
+				} else {
+					isExtended = false;
+				}
+				
+				normPercent.setText(progress + "%");
+				if (experimental) {
+					normText.setText("Now");
+				} else {
+					normText.setText("Now: " + normInsulin + "U");
+				}
+
+				extPercent.setText((100-progress) + "%");
+				if (experimental) {
+					extText.setText("Extended");
+				} else {
+					extText.setText("Extended: " + extInsulin + "U");
+				}
+				
+				if (progress < 100) {
+					durationLayout.setVisibility(View.VISIBLE);
+				} else {
+					durationLayout.setVisibility(View.GONE);
+				}
+				
+				if (progress < 100 & durationSpinner.getSelectedItemPosition()==0) {
+					injectMeal.setEnabled(false);
+				} else if (progress < 100 & durationSpinner.getSelectedItemPosition()!=0) {
+					injectMeal.setEnabled(true);
+				} else if (progress==100 & totalValid) {
+					injectMeal.setEnabled(true);
+				}
+			}
+		});
+	
+		durationSpinner.setOnItemSelectedListener(new OnItemSelectedListener() {
+		    @Override
+		    public void onItemSelected(AdapterView<?> parentView, View selectedItemView, int position, long id) {
+		        if (position==0 & mealDivisionSeekbar.getProgress() < 100) {
+		        	injectMeal.setEnabled(false);
+		        } else {
+		        	injectMeal.setEnabled(true);
+		        }       
+		    }
+
+		    @Override
+		    public void onNothingSelected(AdapterView<?> parentView) {
+		    	injectMeal.setEnabled(false);
+		    }
+
+		});
+	}
     
  	/***********************************************************************
  	  ________   ___  ___    _____  _____  __  ________
@@ -307,10 +426,22 @@ public class MealActivity extends Activity{
 
 			public void onTextChanged(CharSequence s, int start, int before, int count) {
 				carbInput(carbsInput.getText().toString());
+				
+				if (carbsInsulin > 0) {
+					mealDivisionSeekbar.setEnabled(true);
+				} else {
+					mealDivisionSeekbar.setEnabled(false);
+				}
 			}
 
 			public void afterTextChanged(Editable s) {
 				carbInput(carbsInput.getText().toString());
+				
+				if (carbsInsulin > 0) {
+					mealDivisionSeekbar.setEnabled(true);
+				} else {
+					mealDivisionSeekbar.setEnabled(false);
+				}
 			}
 	 		
 	 	});
@@ -424,7 +555,17 @@ public class MealActivity extends Activity{
 		
 		AlertDialog.Builder alert = new AlertDialog.Builder(this);
     	alert.setTitle("Confirm Injection");
-    	alert.setMessage("Do you want to inject "+String.format("%.2f", totalInsulin)+" U?");
+    	
+    	if (experimental) {
+        	alert.setMessage("Do you want to inject this meal bolus?");
+    	} else {
+    		if (isExtended) {
+            	alert.setMessage("Do you want to inject "+String.format("%.2f", normInsulin)+" U now and "+
+    		String.format("%.2f", extInsulin) + " U over " + durationSpinner.getSelectedItem().toString() + "?");
+    		} else {
+            	alert.setMessage("Do you want to inject "+String.format("%.2f", totalInsulin)+" U?");
+    		}
+    	}
 
     	alert.setPositiveButton("Yes", new DialogInterface.OnClickListener() 
     	{
@@ -489,72 +630,98 @@ public class MealActivity extends Activity{
 		resetInactivityTimer();
 	}
 	
-	private void initializeScreen()
-	{
+	private void initializeScreen() {
 		final String FUNC_TAG = "initMealScreen";
-		
+
 		info = "";
-		
+
 		inProgress = true;
+		isExtended = false;
 		carbsValid = bgValid = corrValid = totalValid = injectEnabled = false;
-		carbsInsulin = bgInsulin = corrInsulin = iobInsulin = totalInsulin = 0.0;
+		carbsInsulin = bgInsulin = corrInsulin = iobInsulin = totalInsulin = normInsulin = extInsulin = 0.0;
 		bg = carbs = 0.0;
-		
-    	int blood_glucose_display_units = Params.getInt(getContentResolver(), "blood_glucose_display_units", CGM.BG_UNITS_MG_PER_DL);
-		TextView unit_string_mmol = (TextView)this.findViewById(R.id.bgTextUnitLabelMMolPerL);
-		TextView unit_string_mgdl = (TextView)this.findViewById(R.id.bgTextUnitLabelMgPerDl);
-		
-		if (blood_glucose_display_units == CGM.BG_UNITS_MMOL_PER_L) 
-		{
+
+		int blood_glucose_display_units = Params.getInt(getContentResolver(),
+				"blood_glucose_display_units", CGM.BG_UNITS_MG_PER_DL);
+		TextView unit_string_mmol = (TextView) this
+				.findViewById(R.id.bgTextUnitLabelMMolPerL);
+		TextView unit_string_mgdl = (TextView) this
+				.findViewById(R.id.bgTextUnitLabelMgPerDl);
+
+		if (blood_glucose_display_units == CGM.BG_UNITS_MMOL_PER_L) {
 			unit_string_mmol.setVisibility(View.VISIBLE);
 			unit_string_mgdl.setVisibility(View.GONE);
-		}
-		else {
+		} else {
 			unit_string_mmol.setVisibility(View.GONE);
 			unit_string_mgdl.setVisibility(View.VISIBLE);
 		}
-		
-		infoText = (TextView)this.findViewById(R.id.infoText);
-		injectMeal = (Button)this.findViewById(R.id.injectMealBolusButton);
-		carbsInput = (EditText)this.findViewById(R.id.editMealCarbs);
-		bgInput = (EditText)this.findViewById(R.id.editBg);
-		carbsOutput = (EditText)this.findViewById(R.id.editMealCarbsTotal);
-		bgOutput = (EditText)this.findViewById(R.id.editBgTotal);
-		iobOutput = (EditText)this.findViewById(R.id.editIobTotal);
-		corrInput = (EditText)this.findViewById(R.id.editCorrTotal);
-		totalOutput = (EditText)this.findViewById(R.id.editAllTotal);
-		iob = (CheckBox)this.findViewById(R.id.iobCheckbox);
+
+		infoText = (TextView) this.findViewById(R.id.infoText);
+		injectMeal = (Button) this.findViewById(R.id.injectMealBolusButton);
+		carbsInput = (EditText) this.findViewById(R.id.editMealCarbs);
+		bgInput = (EditText) this.findViewById(R.id.editBg);
+		carbsOutput = (EditText) this.findViewById(R.id.editMealCarbsTotal);
+		bgOutput = (EditText) this.findViewById(R.id.editBgTotal);
+		iobOutput = (EditText) this.findViewById(R.id.editIobTotal);
+		corrInput = (EditText) this.findViewById(R.id.editCorrTotal);
+		totalOutput = (EditText) this.findViewById(R.id.editAllTotal);
+		iob = (CheckBox) this.findViewById(R.id.iobCheckbox);
 		infoText.setTextColor(Color.RED);
 		infoText.setText("");
 		
-	 	carbListeners();
-	 	smbgListeners();
-	 	corrListeners();
-	 	
-	 	int meal_activity_bolus_calculation_mode = Params.getInt(getContentResolver(), "meal_activity_bolus_calculation_mode", Meal.MEAL_ACTIVITY_ALWAYS_CALCULATES_BOLUS);
-        switch(meal_activity_bolus_calculation_mode) 
-        {
-        	case Meal.MEAL_ACTIVITY_ALWAYS_CALCULATES_BOLUS:
+		// ADDED for GV
+		durationLayout = (LinearLayout) this.findViewById(R.id.bolusDurationLayout);
+		
+		normPercent = (TextView) this.findViewById(R.id.normPercent);
+		extPercent = (TextView) this.findViewById(R.id.extPercent);
+		normText = (TextView) this.findViewById(R.id.normTextLabel);
+		extText = (TextView) this.findViewById(R.id.extTextLabel);
+		
+		durationSpinner = (Spinner) this.findViewById(R.id.spinnerDuration);
+		durationSpinner.setSelection(0);
+		
+		mealDivisionSeekbar = (SeekBar) this.findViewById(R.id.seekMealDivision);
+		mealDivisionSeekbar.setProgressDrawable(getResources().getDrawable(R.drawable.progress_bar));
+		mealDivisionSeekbar.setMax(100);
+		mealDivisionSeekbar.setProgress(100);
+		mealDivisionSeekbar.setEnabled(false);
+		
+		if (experimental) {
+			corrInput.setEnabled(false);
+			corrInput.setFocusable(false);
+			corrInput.setText("N/A");
+			corrInput.setTextColor(Color.GRAY);
+		}
+		
+		carbListeners();
+		smbgListeners();
+		corrListeners();
+
+		int meal_activity_bolus_calculation_mode = Params.getInt(
+				getContentResolver(), "meal_activity_bolus_calculation_mode",
+				Meal.MEAL_ACTIVITY_ALWAYS_CALCULATES_BOLUS);
+		switch (meal_activity_bolus_calculation_mode) {
+		case Meal.MEAL_ACTIVITY_ALWAYS_CALCULATES_BOLUS:
+			mealScreenOpenLoop();
+			break;
+		case Meal.MEAL_ACTIVITY_CALCULATES_BOLUS_PUMP_MODE:
+			switch (DIAS_STATE) {
+			case State.DIAS_STATE_OPEN_LOOP:
 				mealScreenOpenLoop();
-        		break;
-        	case Meal.MEAL_ACTIVITY_CALCULATES_BOLUS_PUMP_MODE:
-                switch(DIAS_STATE) {
-    				case State.DIAS_STATE_OPEN_LOOP:
-    					mealScreenOpenLoop();
-    					break;
-    				case State.DIAS_STATE_SAFETY_ONLY:
-    				case State.DIAS_STATE_CLOSED_LOOP:
-    					mealScreenClosedLoop();
-    					break;
-                }
-        		break;
-        	case Meal.MEAL_ACTIVITY_NEVER_CALCULATES_BOLUS:
+				break;
+			case State.DIAS_STATE_SAFETY_ONLY:
+			case State.DIAS_STATE_CLOSED_LOOP:
 				mealScreenClosedLoop();
-        		break;
-        	default:
-				mealScreenOpenLoop();
-        		break;
-        }
+				break;
+			}
+			break;
+		case Meal.MEAL_ACTIVITY_NEVER_CALCULATES_BOLUS:
+			mealScreenClosedLoop();
+			break;
+		default:
+			mealScreenOpenLoop();
+			break;
+		}
 	}
 	
 	private void mealScreenClosedLoop() 
