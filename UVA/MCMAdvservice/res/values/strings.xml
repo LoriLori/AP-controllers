@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">MCMservice</string>
+    
+        <string-array name="extended_bolus_durations">
+        <item>Select Extended Bolus Duration</item>      
+        <item>30 minutes</item>
+        <item>1 hour</item>
+        <item>1.5 hours</item>
+        <item>2 hours</item>
+        <item>2.5 hours</item>
+        <item>3 hours</item>
+        <item>3.5 hours</item>
+        <item>4 hours</item>
+        <item>4.5 hours</item>
+        <item>5 hours</item>
+        <item>5.5 hours</item>
+        <item>6 hours</item>
+        <item>6.5 hours</item>
+        <item>7 hours</item>
+        <item>7.5 hours</item>
+        <item>8 hours</item>
+        <item>8.5 hours</item>
+        <item>9 hours</item>
+        <item>9.5 hours</item>
+        <item>10 hours</item>
+        <item>10.5 hours</item>
+        <item>11 hours</item>
+        <item>11.5 hours</item>
+        <item>12 hours</item>
+    </string-array>
+</resources>
