@@ -673,16 +673,18 @@ public class MCMservice extends Service
                 		Event.addEvent(getApplicationContext(), Event.EVENT_SYSTEM_IO_TEST, Event.makeJsonString(b), Event.SET_LOG);
 					}
 	        		
+	        		Bundle extendedMealData = new Bundle();
+	        		extendedMealData.putString("extendedbolusdescription", " ext_duration_minutes: "+MealActivity.extDuration+
+	        				" norm_bolus: "+MealActivity.normInsulin+
+	        				" ext_bolus: "+MealActivity.extInsulin);
+	        		
 	           		ContentValues mealValues = new ContentValues();
 	           		mealValues.put("carbs", MealActivity.carbs);
 	           		mealValues.put("smbg", MealActivity.bg);
 	           		mealValues.put("time", System.currentTimeMillis()/1000);
 	           		mealValues.put("meal_bolus", meal);
 	           		mealValues.put("corr_bolus", correction);
-	           		mealValues.put("json", "");
-	           		mealValues.put("norm_bolus", MealActivity.normInsulin);
-	           		mealValues.put("ext_bolus", MealActivity.extInsulin);
-	           		mealValues.put("ext_duration_minutes", MealActivity.extDuration);
+	           		mealValues.put("json", Event.makeJsonString(extendedMealData));
 	           		
 	           		if (DIAS_STATE == State.DIAS_STATE_OPEN_LOOP || (Params.getInt(getContentResolver(), "meal_activity_bolus_calculation_mode", 0) == 0)) {
 		           		mealValues.put("status", edu.virginia.dtc.SysMan.Meal.MEAL_STATUS_APPROVED);
