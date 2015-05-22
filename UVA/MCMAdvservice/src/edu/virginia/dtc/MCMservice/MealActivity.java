@@ -75,8 +75,10 @@ public class MealActivity extends Activity{
 	private CheckBox iob;
 	private Button injectMeal;
 	
+	//Added for GV
 	public static double normInsulin = 0.0;
 	public static double extInsulin = 0.0;
+	public static int extDuration = 0;
 	
 	private TextView normPercent;
 	private TextView extPercent;
@@ -273,7 +275,7 @@ public class MealActivity extends Activity{
 			carbsInput.setTextColor(Color.RED);
 			carbsOutput.setText(invalid);
 			mealDivisionSeekbar.setEnabled(false);
-			mealDivisionSeekbar.setProgress(100);
+			mealDivisionSeekbar.setProgress(0);
 			durationLayout.setVisibility(View.GONE);
 			extText.setText("Extended: 0U");
 			
@@ -332,8 +334,10 @@ public class MealActivity extends Activity{
 
 			@Override
 			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+				progress= 100-progress;
+				
 				normInsulin = Math.round(progress*totalInsulin)/100.00;
-				extInsulin= Math.round(100*(totalInsulin-normInsulin))/100.00;
+				extInsulin = Math.round(100*(totalInsulin-normInsulin))/100.00;
 				
 				if (progress < 100) {
 					isExtended = true;
@@ -378,7 +382,8 @@ public class MealActivity extends Activity{
 		        	injectMeal.setEnabled(false);
 		        } else {
 		        	injectMeal.setEnabled(true);
-		        }       
+		        }  
+		        extDuration = 30 * position;
 		    }
 
 		    @Override
@@ -683,7 +688,7 @@ public class MealActivity extends Activity{
 		mealDivisionSeekbar = (SeekBar) this.findViewById(R.id.seekMealDivision);
 		mealDivisionSeekbar.setProgressDrawable(getResources().getDrawable(R.drawable.progress_bar));
 		mealDivisionSeekbar.setMax(100);
-		mealDivisionSeekbar.setProgress(100);
+		mealDivisionSeekbar.setProgress(0);
 		mealDivisionSeekbar.setEnabled(false);
 		
 		if (experimental) {

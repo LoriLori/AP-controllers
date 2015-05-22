@@ -476,7 +476,7 @@
             </LinearLayout>
 
             <LinearLayout
-                android:id="@+id/bolusDurationLayout"
+                android:id="@+id/injectionLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"

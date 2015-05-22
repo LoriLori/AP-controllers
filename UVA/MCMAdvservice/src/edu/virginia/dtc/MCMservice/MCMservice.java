@@ -656,7 +656,7 @@ public class MCMservice extends Service
 	        		}
 	        		
 	        		Debug.i(TAG, FUNC_TAG, "Meal: "+meal+" Correction: "+correction);
-	        		Debug.i(TAG, FUNC_TAG, "Total: "+(meal+correction));
+	        		Debug.i(TAG, FUNC_TAG, "Total: "+(meal+correction));	        
 	        		
 	        		if (Params.getBoolean(getContentResolver(), "enableIO", false)) 
 					{
@@ -680,6 +680,9 @@ public class MCMservice extends Service
 	           		mealValues.put("meal_bolus", meal);
 	           		mealValues.put("corr_bolus", correction);
 	           		mealValues.put("json", "");
+	           		mealValues.put("norm_bolus", MealActivity.normInsulin);
+	           		mealValues.put("ext_bolus", MealActivity.extInsulin);
+	           		mealValues.put("ext_duration_minutes", MealActivity.extDuration);
 	           		
 	           		if (DIAS_STATE == State.DIAS_STATE_OPEN_LOOP || (Params.getInt(getContentResolver(), "meal_activity_bolus_calculation_mode", 0) == 0)) {
 		           		mealValues.put("status", edu.virginia.dtc.SysMan.Meal.MEAL_STATUS_APPROVED);
